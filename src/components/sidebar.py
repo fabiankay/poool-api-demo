@@ -1,7 +1,7 @@
 import streamlit as st
 
 @st.fragment
-def show_congifuration():
+def show_congifuration() -> None:
     st.header('Setup Status:')
     if "poool_api_key" in st.session_state:
         st.write("✅ Poool API Key Verified")
@@ -18,7 +18,7 @@ def show_congifuration():
     st.write("---")
 
 
-def show_sidebar():
+def show_sidebar() -> None:
     with st.sidebar:
         # Load & show logo image
         logo_path = "assets/image_logo.png"

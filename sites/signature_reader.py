@@ -1,10 +1,10 @@
-import json
 import streamlit as st
 import openai
 
 from src.helpers.open_api import extract_details
-from src.helpers.poool_api import create_company, create_person, get_companies
+from src.helpers.poool_api import create_company, create_person, get_companies, find_similar_companies
 from src.models.company import Company, Person
+from src.components.company_selectbox import company_selectbox
 
 st.write("# Example 1: Get Contact from Mail Signature! ✏️")
 st.write("This example demonstrates how to extract details from an email signature using OpenAI. Copy and paste an email signature in the text area below and click the 'Extract Details' button to get the extracted details.")
@@ -12,12 +12,6 @@ st.write("This example demonstrates how to extract details from an email signatu
 # Initialize session state data
 if "data" not in st.session_state:
     st.session_state["data"] = {}
-
-if "details_extracted" not in st.session_state:
-    st.session_state.details_extracted = False
-
-def callback():
-    st.session_state.details_extracted = True
 
 # Set your OpenAI API key
 if "openai_api_key" not in st.session_state:
@@ -34,6 +28,10 @@ if "poool_api_key" not in st.session_state or "openai_api_key" not in st.session
     st.page_link("sites/setup.py", label="Setup", icon="🚀")
     st.stop()
 
+# @todo: Check if needed or good place
+if "companies" not in st.session_state["data"] or len(st.session_state["data"]["companies"]) == 0:
+    companies = get_companies(st.session_state.poool_api_key)
+
 # Large text input for email signature
 with st.form(key="email_signature"):
     signature = st.text_area("Paste your email signature here:", height=200)
@@ -42,42 +40,62 @@ with st.form(key="email_signature"):
 # Extract details from email signature if form is submitted
 if submit:
     with st.spinner("Extracting details..."):
-        extracted_details = extract_details(signature)
-        # convert str extracted details to json
-        extracted_details = json.loads(extracted_details)
-        # convert json extracted details to model
-        st.session_state["data"]["company"] = Company.model_validate(extracted_details["company"])
-        st.session_state["data"]["person"] = Person.model_validate(extracted_details["person"])
+        company, person = extract_details(signature)
+        st.session_state["data"]["company"] = company
+        st.session_state["data"]["person"] = person
     st.success("Details extracted successfully.")
     
 if "company" in st.session_state["data"]:
-    expander = st.expander("Extracted Details")
-    expander.write("#### Company")
-    expander.write(st.session_state["data"]["company"].model_dump(exclude_none=True))
-    expander.write("#### Person")
-    expander.write(st.session_state["data"]["person"].model_dump(exclude_none=True))
+    # two columns for company and person details
+    col1, col2 = st.columns(2)
 
-    if st.button("Send Details to Poool"):
-        # send company details to Poool
-        json_data = {}
-        json_data["data"] = st.session_state["data"]["company"].model_dump(exclude_none=True)
-        response = create_company(st.session_state.poool_api_key, json_data)
-        if response.status_code == 200:
-            # save company id
-            st.session_state["data"]["company"].company_id = response.json()["data"]["id"]
-            st.session_state["data"]["person"].company_id = response.json()["data"]["id"]
+    with col1:
+        expander = st.expander("Extracted Details")
+        expander.write("#### Company")
+        expander.write(st.session_state["data"]["company"].model_dump(exclude_none=True))
+        expander.write("#### Person")
+        expander.write(st.session_state["data"]["person"].model_dump(exclude_none=True))
 
-            # send person details to Poool
-            json_data = {}
-            json_data["data"] = st.session_state["data"]["person"].model_dump(exclude_none=True)
-            response = create_person(st.session_state.poool_api_key, json_data)
+        if st.button("Send Details to Poool", key="send_details"):
+            # send company details to Poool
+            response = create_company(st.session_state["data"]["company"], st.session_state.poool_api_key)
             if response.status_code == 200:
-                st.success("Details sent to Poool successfully.")
+                # save company id
+                st.session_state["data"]["company"].id = response.json()["data"]["id"]
+                st.session_state["data"]["person"].company_id = response.json()["data"]["id"]
+
+                # send person details to Poool
+                response = create_person(st.session_state["data"]["person"], st.session_state.poool_api_key)
+                if response.status_code == 200:
+                    st.success("Details sent to Poool successfully.")
+                else:
+                    st.error("Error sending details to Poool.")
+                    st.write(response.json())
+                    st.write(response.request.__dict__)
             else:
                 st.error("Error sending details to Poool.")
                 st.write(response.json())
                 st.write(response.request.__dict__)
-        else:
-            st.error("Error sending details to Poool.")
-            st.write(response.json())
-            st.write(response.request.__dict__)
+
+    with col2:
+        # look for similar companies in Poool
+        similar_companies = find_similar_companies(st.session_state["data"]["companies"], st.session_state["data"]["company"].name)
+        company_dict = {company.name: company.id for company in similar_companies if company.name and company.id}
+
+        if len(similar_companies) > 0:
+            st.write("#### We found similar companies in Poool")
+            st.write("If you think this is the same company, you can send the details to Poool.")
+            # show similar companies in selectbox
+            company_id = company_selectbox(similar_companies)
+        
+            if st.button("Add person to selected company", key="send_similar_details"):
+                st.session_state["data"]["company"].id = company_id
+                st.session_state["data"]["person"].company_id = company_id
+                response = create_person(st.session_state["data"]["person"], st.session_state.poool_api_key)
+                
+                if response.status_code == 200:
+                    st.success("Details sent to Poool successfully.")
+                else:
+                    st.error("Error sending details to Poool.")
+                    st.write(response.json())
+                    st.write(response.request.__dict__)

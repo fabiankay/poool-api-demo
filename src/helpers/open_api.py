@@ -1,10 +1,11 @@
+import json
 from requests import get
 import openai
 import streamlit as st
 
 from src.models.company import Company, Person
 
-def validate_api_key(api_key):
+def validate_api_key(api_key: str) -> None:
     client = openai.OpenAI(api_key=api_key)
 
     try:
@@ -25,7 +26,7 @@ def validate_api_key(api_key):
 
 
 # Function to extract details using OpenAI
-def extract_details(signature):
+def extract_details(signature: str) -> tuple[Company, Person]:
     client = openai.OpenAI(api_key=st.session_state.openai_api_key)
     response = client.chat.completions.create(
         model="gpt-4",
@@ -39,4 +40,8 @@ def extract_details(signature):
             {"role": "user", "content": signature}
         ]
     )
-    return response.choices[0].message.content
+
+    result = json.loads(response.choices[0].message.content)
+    company = Company.model_validate(result["company"])
+    person = Person.model_validate(result["person"])
+    return company, person

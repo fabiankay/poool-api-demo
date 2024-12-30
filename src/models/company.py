@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, constr, conint, conlist, StringConstraints, model_serializer
+from pydantic import BaseModel, Field, constr, conint, conlist, StringConstraints, field_validator, model_serializer
 from typing import List, Optional
 from typing_extensions import Annotated
 from datetime import date
@@ -39,7 +39,7 @@ class Tag(BaseModel):
 
 
 class Company(BaseModel):
-    company_id: Annotated[Optional[int], Field(strict=True, gt=0)]
+    id: Annotated[Optional[int], Field(strict=True, gt=0)]
     company_group_id: Annotated[Optional[int], Field(strict=True, gt=0)]
     name: Annotated[Optional[str], Field(max_length=255)]
     name_legal: Annotated[Optional[str], Field(max_length=255)]
@@ -68,6 +68,12 @@ class Company(BaseModel):
     addresses: Optional[List[Address]]
     contacts: Optional[List[Contact]]
     tags: Optional[List[Tag]] = []
+
+    @field_validator("type", mode="before")
+    def validate_location(cls, value):
+        if value == None:
+            return cls.model_fields["type"].default
+        return value
 
 
 class Person(BaseModel):
