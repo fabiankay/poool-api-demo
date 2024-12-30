@@ -2,6 +2,8 @@ from requests import get
 import openai
 import streamlit as st
 
+from src.models.company import Company, Person
+
 def validate_api_key(api_key):
     client = openai.OpenAI(api_key=api_key)
 
@@ -28,7 +30,12 @@ def extract_details(signature):
     response = client.chat.completions.create(
         model="gpt-4",
         messages=[
-            {"role": "developer", "content": f"You are a company secretary that only speaks JSON. Do not generate output that isn't in properly formated JSON. You will be given copies of unstructured E-Mail Signatures that contain information about the company and person sending the Mail. Please extract the company and person information in the following syntax to be handled by an API: name: <company_name> uid: <tax_id> management: <management> jurisdiction: <jurisdiction> commercial_register: <commercial_register> data_privacy_number: <data_privacy_number> addresses: [title: <title>, recipient_1: <recipient_1>, recipient_2: <recipient_2>, recipient_3: <recipient_3>, street_name: <street_name>, street_number: <street_number>, street_additional: <street_additional>, zip: <zip>, location: <location>, state: <state>] contacts: [title: phone-number|mail-adress|website, value: <value>]"},
+            {"role": "developer", "content": f"You are a company secretary that only speaks JSON. Do not generate output that isn't in properly formated JSON. You will be given copies of unstructured E-Mail Signatures that contain information about the company and person sending the Mail."},
+            {"role": "developer", "content": f"Please extract the company in the following syntax to be handled by an API: {Company.model_json_schema()}"},
+            {"role": "developer", "content": f"Please extract the person in the following syntax to be handled by an API: {Person.model_json_schema()}"},
+            {"role": "developer", "content": f"Ignore any other information in the signature - only extract the company and person details." },
+            {"role": "developer", "content": f"You must adhere to all specifications from the pydantic model description. For the final output only keep the initial label and the value property for every property. Skip the first level if called 'properties'. If not given explicitly - use default values." },
+            {"role": "developer", "content": "Return the extracted details in the following format: {company: Company Details, person: Person Details}" },
             {"role": "user", "content": signature}
         ]
     )
