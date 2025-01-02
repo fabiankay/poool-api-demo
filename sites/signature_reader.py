@@ -2,15 +2,11 @@ import streamlit as st
 import openai
 
 from src.helpers.open_api import extract_details
-from src.helpers.poool_api import create_company, create_person, get_companies, find_similar_companies
+from src.helpers.poool_api import create_company, create_person, find_similar_companies, get_companies
 from src.components.company_selectbox import company_selectbox
 
 st.write("# Example 1: Get Contact from Mail Signature! ✏️")
 st.write("This example demonstrates how to extract details from an email signature using OpenAI. Copy and paste an email signature in the text area below and click the 'Extract Details' button to get the extracted details.")
-
-# Initialize session state data
-if "data" not in st.session_state:
-    st.session_state["data"] = {}
 
 # Set your OpenAI API key
 if "openai_api_key" not in st.session_state:
@@ -26,11 +22,6 @@ if "poool_api_key" not in st.session_state:
 if "poool_api_key" not in st.session_state or "openai_api_key" not in st.session_state:
     st.page_link("sites/setup.py", label="Setup", icon="🚀")
     st.stop()
-
-# @todo: Check if needed or good place
-if "companies" not in st.session_state["data"] or len(st.session_state["data"]["companies"]) == 0:
-    with st.spinner("Loading companies..."):
-        st.session_state["data"]["companies"] = get_companies(st.session_state.poool_api_key)
 
 # Large text input for email signature
 with st.form(key="email_signature"):
@@ -54,7 +45,8 @@ if "company" in st.session_state["data"]:
     expander.write(st.session_state["data"]["person"].model_dump(exclude_none=True))
 
     # Check if company already exists in Poool
-    similar_companies = find_similar_companies(st.session_state["data"]["companies"], st.session_state["data"]["company"].name)
+    companies = get_companies(st.session_state.poool_api_key)
+    similar_companies = find_similar_companies(companies, st.session_state["data"]["company"].name)
     
     if len(similar_companies) > 0:
         st.write("#### We found similar companies in Poool")
@@ -84,9 +76,6 @@ if "company" in st.session_state["data"]:
             # save company id
             st.session_state["data"]["company"].id = response.json()["data"]["id"]
             st.session_state["data"]["person"].company_id = response.json()["data"]["id"]
-
-            # add companie to companies list
-            st.session_state["data"]["companies"].append(st.session_state["data"]["company"])
 
             # send person details to Poool
             response = create_person(st.session_state["data"]["person"], st.session_state.poool_api_key)

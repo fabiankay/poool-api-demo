@@ -1,6 +1,6 @@
 from typing import List
 from difflib import get_close_matches
-from requests import get, post, Response
+from requests import get, post, patch, Response
 import streamlit as st
 
 from src.models.company import Company, Person
@@ -56,7 +56,7 @@ def create_person(person_data: Person, api_key: str) -> Response:
         return response
     
 
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def get_companies(api_key: str) -> List[Company]:
     api_endpoint = "https://app.poool.cc/api/2/companies"
     headers = {
@@ -90,3 +90,63 @@ def find_similar_companies(companies: List[Company], search_name: str, cutoff: f
     
     return similar_companies
 
+
+def create_tag(tag_name: str, api_key: str) -> Response:
+    api_endpoint = "https://app.poool.cc/api/2/tags"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+    json_data = {}
+    json_data["data"] = {
+        "title": f"Cluster: {tag_name}",
+        "color": "#000000",
+        "color_background": "#f3f3f3",
+        "is_active": True,
+        "available_company": True
+    }
+    try:
+        response = post(api_endpoint, headers=headers, json=json_data)
+        return response
+    except Exception as e:
+        st.error("Error creating tag in Poool.")
+        st.error(e)
+        return response
+    
+
+def add_tag_to_client(client_token: str, tag_id: str, _companies: List[Company], api_key: str) -> Response:
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+    companies = [company for company in _companies if company.name_token == client_token]
+    
+    for company in companies:
+        company = company.model_dump(exclude_none=True)
+        st.write(company)
+        if "tags" not in company:
+            tags = [{"id": tag_id}]
+        else:
+            company["tags"].append({"id": tag_id})
+            tags = company["tags"]
+
+        api_endpoint = f"https://app.poool.cc/api/2/companies/{company['id']}" 
+        json_data = {}
+        json_data["data"] = {
+            "name_token": company["name_token"],
+            "type": company["type"],
+            "tags": tags,
+        }
+        if company["type"] == "company":
+            json_data["data"]["name"] = company["name"]
+        elif company["type"] == "person":
+            json_data["data"]["lastname"] = company["lastname"]
+        try:
+            response = patch(api_endpoint, headers=headers, json=json_data)
+            return response
+        except Exception as e:
+            st.error("Error adding tag to client in Poool.")
+            st.error(e)
+            return response

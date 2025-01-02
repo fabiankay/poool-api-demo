@@ -1,4 +1,6 @@
 import streamlit as st
+from src.helpers.poool_api import get_companies
+from src.helpers.prism import create_clustering_df
 
 @st.fragment
 def show_congifuration() -> None:
@@ -10,11 +12,28 @@ def show_congifuration() -> None:
     if "openai_api_key" in st.session_state:
         st.write("✅ Open AI Key Verified")
     else:
-        st.write("❌ Open AI Key Missing")
+        st.write("❌ OpenAI Key Missing")
     if "prism_username" in st.session_state and "prism_password" in st.session_state:
-        st.write("✅ Database Connection Verified")
+        st.write("✅ Prism Connection Verified")
     else:
-        st.write("❌ Database Connection Missing")
+        st.write("❌ Prism Connection Missing")
+    st.write("---")
+
+@st.fragment
+def show_options() -> None:
+    st.header('Data Handling:')
+    if "companies" in st.session_state["data"] and "poool_api_key" in st.session_state:
+        reload_companies = st.button("📥 Reload Companies", key="reload_companies")
+        if reload_companies:
+            with st.spinner("Loading companies..."):
+                st.session_state["data"]["companies"] = get_companies(st.session_state.poool_api_key)
+    
+    if "clustering_df" in st.session_state["data"]:
+        reload_clustering_df = st.button("📥 Reload Clustering Data")
+        if reload_clustering_df:
+            with st.spinner("Loading clustering data..."):
+                st.session_state["data"]["clustering_df"] = create_clustering_df(timeframe=st.session_state["options"]["timeframe"])
+                   
     st.write("---")
 
 
@@ -27,3 +46,5 @@ def show_sidebar() -> None:
         st.write(st.session_state)
         
         show_congifuration()
+
+        show_options()

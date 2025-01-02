@@ -1,5 +1,26 @@
+import datetime
 import streamlit as st
+
 from src.components import sidebar
+from src.helpers.poool_api import get_companies
+
+# Initialize session state data
+if "data" not in st.session_state:
+    st.session_state["data"] = {}
+
+# Initialize session state data
+if "options" not in st.session_state:
+    st.session_state["options"] = {}
+
+if "features" not in st.session_state["options"]:
+    st.session_state["options"]["features"] = ["Total revenue", "Total cost", "Total timetrack cost", "Total profit"]
+
+if "timeframe" not in st.session_state["options"]:
+    today = datetime.date.today()
+    st.session_state["options"]["timeframe"] = [datetime.date(today.year - 1, 1, 1), datetime.date(today.year - 1, 12, 31)]
+
+if "num_clusters" not in st.session_state["options"]:
+    st.session_state["options"]["num_clusters"] = 3
 
 sidebar.show_sidebar()
 

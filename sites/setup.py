@@ -27,9 +27,9 @@ else:
 
 st.write("### Prism Connection")
 if "prism_username" and "prism_password" in st.session_state:
-    st.success("API key verified.")
+    st.success("Database credentials verified.")
 else:
-    db_username = st.text_input("Postgres Database Username")
-    db_password = st.text_input("Postgres Database Password", type="password")
-    if st.button("Verify API Key", key="prism"):
+    db_username = st.text_input("Prism Username")
+    db_password = st.text_input("Prism Password", type="password")
+    if st.button("Verify database credentials", key="prism"):
         prism.validate_login(db_username, db_password)
