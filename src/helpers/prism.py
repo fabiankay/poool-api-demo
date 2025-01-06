@@ -31,14 +31,14 @@ def validate_login(user: str, password: str, host: str="particles.poool.cc", dat
 def get_timetrack_data(_conn: SQLConnection, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
     query = f"""
             SELECT 
-                data_client_label_token as client_token,
+                jsonb_array_elements_text(prism_source_reference->'client_id') AS client_id,
                 SUM(data_timetrack_cost_client::numeric) as total_timetrack_cost
             FROM 
                 timetrack_times
             WHERE 
                 data_day_date BETWEEN '{start_date}' AND '{end_date}'
             GROUP BY 
-                data_client_label_token;
+                client_id;
             """
     df = _conn.query(query)
     return df
@@ -48,7 +48,7 @@ def get_timetrack_data(_conn: SQLConnection, start_date: datetime.date, end_date
 def get_revenue_data(_conn: SQLConnection, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
     query = f"""
             SELECT
-                data_client_label_token as client_token,
+                jsonb_array_elements_text(prism_source_reference->'company_id') AS client_id,
                 SUM(data_item_value::numeric) as total_revenue
             FROM 
                 calculation_report
@@ -56,7 +56,7 @@ def get_revenue_data(_conn: SQLConnection, start_date: datetime.date, end_date: 
                 data_day_date BETWEEN '{start_date}' AND '{end_date}'
                 AND data_item_account_type = 'receivable'
             GROUP BY 
-                data_client_label_token;
+                client_id;
     """
     df = _conn.query(query)
     return df
@@ -66,14 +66,14 @@ def get_revenue_data(_conn: SQLConnection, start_date: datetime.date, end_date: 
 def get_cost_data(_conn: SQLConnection, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
     query = f"""
             SELECT
-                data_client_label_token as client_token,
+                jsonb_array_elements_text(prism_source_reference->'client_id') AS client_id,
                 SUM(data_invoice_position_netto::numeric) as total_cost
             FROM 
                 accounts_payable
             WHERE 
                 data_day_date BETWEEN '{start_date}' AND '{end_date}'
             GROUP BY 
-                data_client_label_token;
+                client_id;
     """
     df = _conn.query(query)
     return df
@@ -83,7 +83,7 @@ def get_cost_data(_conn: SQLConnection, start_date: datetime.date, end_date: dat
 def get_offer_data(_conn: SQLConnection, start_date: datetime.date, end_date: datetime.date) -> pd.DataFrame:
     query = f"""
             SELECT 
-                data_client_label_token as client_token,
+                jsonb_array_elements_text(prism_source_reference->'client_id') AS client_id,
                 SUM(data_calculation_position_total_sum::numeric) as total_offer
             FROM 
                 calculation_positions
@@ -91,7 +91,7 @@ def get_offer_data(_conn: SQLConnection, start_date: datetime.date, end_date: da
                 data_day_date BETWEEN '{start_date}' AND '{end_date}'
                 AND data_calculation_type = 'offer'
             GROUP BY 
-                data_client_label_token;
+                client_id;
     """
     df = _conn.query(query)
     return df
@@ -115,16 +115,16 @@ def create_clustering_df(timeframe: List[datetime.date] = [datetime.date.today()
     offer_data = get_offer_data(_conn, timeframe[0], timeframe[1])
 
     # get all client tokens
-    client_tokens = set(timetrack_data["client_token"]).union(set(revenue_data["client_token"]), set(cost_data["client_token"]), set(offer_data["client_token"]))
+    client_ids = set(timetrack_data["client_id"]).union(set(revenue_data["client_id"]), set(cost_data["client_id"]), set(offer_data["client_id"]))
 
     # create dataframe with all client tokens and respective data
-    df = pd.DataFrame(client_tokens, columns=["client_token"])
-    df = df.merge(timetrack_data, on="client_token", how="left")
-    df = df.merge(revenue_data, on="client_token", how="left")
-    df = df.merge(cost_data, on="client_token", how="left")
-    df = df.merge(offer_data, on="client_token", how="left")
-    # remove rows where client_token is null (f.e. Cost without client_token)
-    df = df.dropna(subset=["client_token"])
+    df = pd.DataFrame(client_ids, columns=["client_id"])
+    df = df.merge(timetrack_data, on="client_id", how="left")
+    df = df.merge(revenue_data, on="client_id", how="left")
+    df = df.merge(cost_data, on="client_id", how="left")
+    df = df.merge(offer_data, on="client_id", how="left")
+    # remove rows where client_token is null (f.e. Cost without client_id)
+    df = df.dropna(subset=["client_id"])
     # fill missing values with 0
     df.fillna(0, inplace=True)
     df['Total profit'] = df['total_revenue'] - df['total_cost'] - df['total_timetrack_cost']
@@ -137,7 +137,7 @@ def create_clustering_df(timeframe: List[datetime.date] = [datetime.date.today()
         "total_cost": "Total cost", 
         "total_offer": "Total offer"}, inplace=True)
     # set client_token as index
-    df.set_index("client_token", inplace=True)
+    df.set_index("client_id", inplace=True)
     return df
 
 

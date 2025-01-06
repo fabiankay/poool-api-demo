@@ -1,6 +1,6 @@
 from typing import List
 from difflib import get_close_matches
-from requests import get, post, patch, Response
+from requests import get, post, put, Response
 import streamlit as st
 
 from src.models.company import Company, Person
@@ -76,7 +76,27 @@ def get_companies(api_key: str) -> List[Company]:
         st.error("Error getting companies from Poool.")
         st.error(e)
         return companies
-    
+
+
+def get_company(id: int, api_key: str) -> Company:
+    api_endpoint = f"https://app.poool.cc/api/2/companies/{id}"
+    headers = {
+        "Authorization": f"Bearer {api_key}"
+    }
+    try:
+        response = get(api_endpoint, headers=headers)
+        if response.status_code == 200:
+            company_data = response.json()["data"]
+            company = Company.model_validate(company_data)
+        else:
+            st.error("Error fetching company data from Poool.")
+            company = None
+    except Exception as e:
+        st.error("Error fetching company data from Poool.")
+        st.error(e)
+        company = None
+    return company
+
 
 def find_similar_companies(companies: List[Company], search_name: str, cutoff: float = 0.8) -> List[Company]:
     # Extract company names
@@ -115,38 +135,31 @@ def create_tag(tag_name: str, api_key: str) -> Response:
         return response
     
 
-def add_tag_to_client(client_token: str, tag_id: str, _companies: List[Company], api_key: str) -> Response:
+def add_tag_to_client(client_id: int, tag_id: str, api_key: str) -> Response:
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
         "Accept": "application/json"
     }
-    companies = [company for company in _companies if company.name_token == client_token]
+    # companies = [company for company in _companies if company.name_token == client_token]
     
-    for company in companies:
-        company = company.model_dump(exclude_none=True)
-        st.write(company)
-        if "tags" not in company:
-            tags = [{"id": tag_id}]
-        else:
-            company["tags"].append({"id": tag_id})
-            tags = company["tags"]
+    company = get_company(id=client_id, api_key=api_key)
+    if not company:
+        return None
 
-        api_endpoint = f"https://app.poool.cc/api/2/companies/{company['id']}" 
-        json_data = {}
-        json_data["data"] = {
-            "name_token": company["name_token"],
-            "type": company["type"],
-            "tags": tags,
-        }
-        if company["type"] == "company":
-            json_data["data"]["name"] = company["name"]
-        elif company["type"] == "person":
-            json_data["data"]["lastname"] = company["lastname"]
-        try:
-            response = patch(api_endpoint, headers=headers, json=json_data)
-            return response
-        except Exception as e:
-            st.error("Error adding tag to client in Poool.")
-            st.error(e)
-            return response
+    company = company.model_dump(exclude_none=True)
+    if "tags" not in company:
+        company["tags"] = [{"id": tag_id}]
+    else:
+        company["tags"].append({"id": tag_id})
+
+    api_endpoint = f"https://app.poool.cc/api/2/companies/{company['id']}" 
+    json_data = {}
+    json_data["data"] = company
+    try:
+        response = put(api_endpoint, headers=headers, json=json_data)
+        return response
+    except Exception as e:
+        st.error("Error adding tag to client in Poool.")
+        st.error(e)
+        return response

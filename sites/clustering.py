@@ -45,6 +45,7 @@ if submit_button:
 if "clustering_df" in st.session_state["data"]:
     # select features by selecting columns
     df = st.session_state["data"]["clustering_df"].copy()
+    st.write(df)
     df, kmeans = run_clustering(df, st.session_state["options"]["num_clusters"], st.session_state["options"]["features"])
 
     st.write("### Clustering Results")
@@ -98,7 +99,7 @@ if "clustering_df" in st.session_state["data"]:
         counter = 0
         size = df.index.nunique()
         progress_text = f"Sending Clustering Results to Poool. Sending Client {counter} of {size}. Please wait."
-        # progress step size is number of name_tokens
+        # progress step size is number of client_ids
         progress_status = 0
         progress_step = 1 / size
         progress_bar = st.progress(progress_status, text=progress_text)
@@ -108,14 +109,16 @@ if "clustering_df" in st.session_state["data"]:
             response = create_tag(cluster_names[i], st.session_state["poool_api_key"])
             tag_id = response.json()["data"]["id"]
             # add tag to all clients in cluster i
-            for client_token in df[df["cluster"] == i].index:
+            for client_id in df[df["cluster"] == i].index:
                 counter += 1
                 progress_status += progress_step
                 progress_text = f"Sending Clustering Results to Poool. Sending Client {counter} of {size}. Please wait."
                 progress_bar.progress(progress_status, text=progress_text)
-                response = add_tag_to_client(client_token, tag_id, companies, st.session_state["poool_api_key"])
+                response = add_tag_to_client(client_id, tag_id, st.session_state["poool_api_key"])
+                if not response:
+                    st.error(f"Error setting Tag on Company ID {client_id} - Not Found")
                 if response.status_code != 200:
-                    st.error(f"Error sending Cluster {i+1} to Poool.")
+                    st.error(f"Error sending Company ID {client_id} to Poool.")
                     st.write(response.json())
 
         progress_bar.empty()            

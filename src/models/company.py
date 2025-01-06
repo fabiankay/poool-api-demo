@@ -68,6 +68,7 @@ class Company(BaseModel):
     addresses: Optional[List[Address]]
     contacts: Optional[List[Contact]]
     tags: Optional[List[Tag]] = []
+    app_version: Optional[int]
 
     @field_validator("type", mode="before")
     def validate_location(cls, value):
