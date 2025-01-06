@@ -1,8 +1,11 @@
-# 🎈 Blank app template
+# 🎈 Poool API Demo
 
-A simple Streamlit app template for you to modify!
+This app will let you explore Poool's API.
+Poool is a PSA SaaS company - for more information please visit [poool.cc](https://www.poool.cc).
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://poool-api.streamlit.app/)
+You can start exploring here directly or run this app locally (requires Python).
+
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://poool-api-demo.streamlit.app/)
 
 ### How to run it on your own machine
 
@@ -15,5 +18,5 @@ A simple Streamlit app template for you to modify!
 2. Run the app
 
    ```
-   $ streamlit run app.py
+   $ streamlit run API_Demo.py --server.enableCORS false --server.enableXsrfProtection false
    ```
