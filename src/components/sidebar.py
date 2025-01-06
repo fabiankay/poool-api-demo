@@ -3,7 +3,7 @@ from src.helpers.poool_api import get_companies
 from src.helpers.prism import create_clustering_df
 
 @st.fragment
-def show_congifuration() -> None:
+def show_configuration() -> None:
     st.header('Setup Status:')
     if "poool_api_key" in st.session_state:
         st.write("✅ Poool API Key Verified")
@@ -45,6 +45,6 @@ def show_sidebar() -> None:
 
         st.write(st.session_state)
         
-        show_congifuration()
+        show_configuration()
 
-        show_options()
+        # show_options()
